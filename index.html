@@ -3,50 +3,32 @@
 <head>
     <meta charset="utf-8">
     <title>Batch Image Editor</title>
+    <!-- Links to bootstrap css and awesome font css-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="/index.css">
 </head>
 <body>
     <h1>Batch Image Editor</h1>
+    
+    <div class="controls">
+        <label for="fileInput" class="inputs">
+            <i class="fas fa-file-image"></i> Upload Images
+        </label>
+        <input id="fileInput" type="file" multiple accept="image/*" style="display: none;">
+        <label for="folderInput" class="inputs">
+            <i class="fas fa-folder-open"></i> Upload Folder
+        </label>
+        <input id="folderInput" type="file" webkitdirectory multiple accept="image/*" style="display: none;">
+        <br><br>
+        <button id="toggleBtn">Show Images</button>
+        <button id="downloadBtn" disabled>Download All</button>
+        <button id="clearBtn">Clear All</button>
+    </div>
 
-    <input id="folder" type="file" webkitdirectory multiple>
-    <br><br>
+    <div id="status" class="loading"></div>
+    <div id="imageList" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
 
-    <button id="toggle">Show Images</button>
-
-    <div id="output"></div>
-
-    <script type="module">
-        import init, { generate_image_html } from "./pkg/wasm_image_viewer.js";
-
-        let show = false;
-        let files = [];
-
-        async function run() {
-            await init();
-
-            const folderInput = document.getElementById("folder");
-            const toggleBtn = document.getElementById("toggle");
-            const output = document.getElementById("output");
-
-            // Wait to see if a folder has been selected
-            folderInput.addEventListener("change", () => {
-                files = Array.from(folderInput.files);
-                update();
-            });
-
-            // Wait to see if show iamges button has been pressed
-            toggleBtn.addEventListener("click", () => {
-                show = !show;
-                toggleBtn.textContent = show ? "Hide Images" : "Show Images";
-                update();
-            });
-            
-            function update() {
-                const arr = new Array(...files);
-                output.innerHTML = generate_image_html(show, arr);
-            }
-        }
-
-        run();
-    </script>
+    <script type="module" src="./script.js"></script>
 </body>
 </html>
