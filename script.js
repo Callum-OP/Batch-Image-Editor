@@ -111,17 +111,49 @@ function displayImages() {
         
         // Add html
         imageDiv.innerHTML = `
-            <h3>${name}</h3>
-            <p>Original: ${width} x ${height}</p>
-            <div class="image-controls">
-                <label>Width: <input type="number" id="width-${i}" class="w-input" data-index="${i}" value="${width}"></label>
-                <label>Height: <input type="number" id="height-${i}" class="h-input" data-index="${i}" value="${height}"></label>
-                <label><input type="checkbox" id="lock-ratio-${i}" checked> Lock Ratio</label>
-                <button onclick="resizeImage(${i})">Apply Resize</button>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0 text-truncate">${name}</h5>
+                </div>
+                
+                <div class="card-body">
+                    <div class="text-center mb-3 bg-dark rounded p-2">
+                        <img src="${url}" alt="${name}" class="img-fluid rounded border shadow-sm" style="max-height: 250px;">
+                    </div>
+
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-info-circle me-1"></i> Current size: <strong>${width} x ${height}</strong>
+                    </p>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">W</span>
+                                <input type="number" id="width-${i}" class="form-control w-input" data-index="${i}" value="${width}">
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">H</span>
+                                <input type="number" id="height-${i}" class="form-control h-input" data-index="${i}" value="${height}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="lock-ratio-${i}" checked>
+                            <label class="form-check-label small" for="lock-ratio-${i}">Lock Ratio</label>
+                        </div>
+
+                        <button class="btn btn-sm btn-primary" onclick="resizeImage(${i})">
+                            <i class="fas fa-expand me-1"></i> Apply
+                        </button>
+                    </div>
+                </div>
             </div>
-            <img src="${url}" alt="${name}" class="preview-image">
         `;
-        
+
         // Add to index file
         container.appendChild(imageDiv);
     }
