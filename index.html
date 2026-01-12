@@ -8,27 +8,38 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="/index.css">
 </head>
-<body>
-    <h1>Batch Image Editor</h1>
-    
-    <div class="controls">
-        <label for="fileInput" class="inputs">
-            <i class="fas fa-file-image"></i> Upload Images
-        </label>
-        <input id="fileInput" type="file" multiple accept="image/*" style="display: none;">
-        <label for="folderInput" class="inputs">
-            <i class="fas fa-folder-open"></i> Upload Folder
-        </label>
-        <input id="folderInput" type="file" webkitdirectory multiple accept="image/*" style="display: none;">
-        <br><br>
-        <button id="toggleBtn">Show Images</button>
-        <button id="downloadBtn" disabled>Download All</button>
-        <button id="clearBtn">Clear All</button>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold text-dark">Batch Image Editor</h1>
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-body text-center">
+                <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                    <label for="fileInput" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-image"></i> Upload Images
+                    </label>
+                    <input id="fileInput" type="file" multiple accept="image/*" style="display: none;">
+                    <label for="folderInput" class="btn btn-outline-secondary">
+                        <i class="fas fa-folder-open"></i> Upload Folder
+                    </label>
+                    <input id="folderInput" type="file" webkitdirectory multiple accept="image/*" style="display: none;">
+                </div>
+                
+                <br><br>
+
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <button id="toggleBtn" class="btn btn-outline-secondary">Show Images</button>
+                    <button id="downloadBtn" class="btn btn-success text-white" disabled>Download All</button>
+                    <button id="clearBtn" class="btn btn-outline-danger">Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="card-footer text-center text-muted small"></div>
+        <div id="imageList" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
     </div>
-
-    <div id="status" class="loading"></div>
-    <div id="imageList" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
-
     <script type="module" src="./script.js"></script>
 </body>
 </html>
