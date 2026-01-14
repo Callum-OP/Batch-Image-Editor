@@ -149,6 +149,10 @@ function displayImages() {
                         <button class="btn btn-sm btn-primary" onclick="resizeImage(${i})">
                             <i class="fas fa-expand me-1"></i> Apply
                         </button>
+
+                        <button class="btn btn-sm btn-outline-success" onclick="downloadSingle(${i})">
+                            <i class="fas fa-download me-1"></i> Download
+                        </button>
                     </div>
                 </div>
             </div>
@@ -199,6 +203,32 @@ window.resizeImage = async function(index) {
     }
 };
 
+// Download a single image
+window.downloadSingle = function(index) {
+    const name = processor.get_image_name(index);
+    const imageData = processor.get_image_data(index);
+    
+    // Convert the PNG bytes into a Blob
+    const blob = new Blob([imageData], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    
+    // Clean up the filename (replace extension with .png)
+    const baseName = name.replace(/\.[^/.]+$/, "");
+    const fileName = `${baseName}_edited.png`;
+    
+    // Create a temporary hidden download link and click it
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    // Remove temp link
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    updateStatus(`Downloaded ${fileName}`);
+};
+
 // Download all images into a Zip folder
 async function downloadAll() {
     const count = processor.get_image_count();
@@ -228,11 +258,13 @@ async function downloadAll() {
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     
+    // Create a temporary hidden download link and click it
     const a = document.createElement('a');
     a.href = url;
     a.download = 'processed_images.zip';
     document.body.appendChild(a);
     a.click();
+    // Remove temp link
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
