@@ -229,6 +229,45 @@ window.downloadSingle = function(index) {
     updateStatus(`Downloaded ${fileName}`);
 };
 
+// Toggle between UI rezise inputs
+window.toggleBatchInputs = function() {
+    const mode = document.getElementById('batchMode').value;
+    document.getElementById('percGroup').classList.toggle('d-none', mode !== 'percentage');
+    document.getElementById('pixelGroup').classList.toggle('d-none', mode !== 'pixels');
+};
+
+// Resize all iamges at once
+window.resizeAll= async function() {
+    const mode = document.getElementById('batchMode').value;
+    const count = processor.get_image_count();
+    
+    if (count === 0) return alert("No images to resize!");
+
+    updateStatus(`Processing ${count} images...`);
+
+    // Loop through all images
+    for (let i = 0; i < count; i++) {
+        let finalW, finalH;
+
+        if (mode === 'percentage') {
+            const scale = document.getElementById('globalScaleRange').value / 100;
+            const dims = processor.get_image_dimensions(i);
+            finalW = Math.round(dims[0] * scale);
+            finalH = Math.round(dims[1] * scale);
+        } else {
+            finalW = parseInt(document.getElementById('globalW').value);
+            finalH = parseInt(document.getElementById('globalH').value);
+        }
+
+        if (finalW > 0 && finalH > 0) {
+            await processor.resize_image(i, finalW, finalH);
+        }
+    }
+
+    updateStatus("Batch resize complete!");
+    if (showImages) displayImages();
+};
+
 // Download all images into a Zip folder
 async function downloadAll() {
     const count = processor.get_image_count();
