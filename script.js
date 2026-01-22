@@ -14,6 +14,10 @@ async function run() {
     document.getElementById('downloadBtn').addEventListener('click', downloadAll);
     document.getElementById('clearBtn').addEventListener('click', clearAll);
 
+    document.getElementById('globalScaleRange').addEventListener('input', (e) => {
+        document.getElementById('percLabel').innerText = e.target.value + '%';
+    });
+
     document.getElementById('imageList').addEventListener('input', (e) => {
         if (!e.target.classList.contains('w-input') && !e.target.classList.contains('h-input')) return;
         
@@ -163,41 +167,19 @@ function displayImages() {
     }
 }
 
-// Control resizing of images
+// Control resizing of single images
 window.resizeImage = async function(index) {
-    const widthInput = document.getElementById(`width-${index}`);
-    const heightInput = document.getElementById(`height-${index}`);
-    const lockCheckbox = document.getElementById(`lock-ratio-${index}`);
-    
-    let newWidth = parseInt(widthInput.value);
-    let newHeight = parseInt(heightInput.value);
-    
-    // If ratio is locked then ensure dimensions remain the same ratio
-    if (lockCheckbox.checked) {
-        const originalDims = processor.get_image_dimensions(index);
-        const ratio = originalDims[0] / originalDims[1];
-        
-        // If width was the last thing changed, adjust height and vice-versa
-        newHeight = Math.round(newWidth / ratio);
-    }
+    const w = parseInt(document.getElementById(`width-${index}`).value);
+    const h = parseInt(document.getElementById(`height-${index}`).value);
+    const format = document.getElementById('globalFormat').value;
 
-    await processor.resize_image(index, newWidth, newHeight);
-    
-    // Ensure image can't be smaller than 0
-    if (newWidth <= 0 || newHeight <= 0) {
-        alert('Width and height must be positive numbers');
-        return;
-    }
-    
+    // Attempt resize
     try {
-        updateStatus(`Resizing image ${index + 1}...`);
-        await processor.resize_image(index, newWidth, newHeight);
+        updateStatus(`Processing image ${index + 1}...`);
+        await processor.resize_image(index, w, h, format);
         updateStatus('Image resized successfully!');
-        
-        if (showImages) {
-            displayImages();
-        }
-    } catch (error) {
+        displayImages();
+    } catch (error) { 
         console.error('Error resizing image:', error);
         updateStatus('Error resizing image: ' + error);
     }
@@ -206,21 +188,19 @@ window.resizeImage = async function(index) {
 // Download a single image
 window.downloadSingle = function(index) {
     const name = processor.get_image_name(index);
-    const imageData = processor.get_image_data(index);
+    const data = processor.get_image_data(index);
+    const format = processor.get_image_format(index);
     
     // Convert the PNG bytes into a Blob
-    const blob = new Blob([imageData], { type: 'image/png' });
+    const blob = new Blob([data], { type: format === 'jpg' ? 'image/jpeg' : 'image/png' });
     const url = URL.createObjectURL(blob);
-    
-    // Clean up the filename (replace extension with .png)
-    const baseName = name.replace(/\.[^/.]+$/, "");
-    const fileName = `${baseName}_edited.png`;
+    // Clean up the filename (replace extension with expected format)
+    const fileName = name.replace(/\.[^/.]+$/, "") + `_edited.${format}`;
     
     // Create a temporary hidden download link and click it
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
-    document.body.appendChild(a);
     a.click();
     // Remove temp link
     document.body.removeChild(a);
@@ -236,77 +216,56 @@ window.toggleBatchInputs = function() {
     document.getElementById('pixelGroup').classList.toggle('d-none', mode !== 'pixels');
 };
 
-// Resize all iamges at once
-window.resizeAll= async function() {
+// Resize all images at once
+window.resizeAll = async function() {
     const mode = document.getElementById('batchMode').value;
+    const format = document.getElementById('globalFormat').value;
     const count = processor.get_image_count();
     
-    if (count === 0) return alert("No images to resize!");
-
     updateStatus(`Processing ${count} images...`);
 
     // Loop through all images
     for (let i = 0; i < count; i++) {
         let finalW, finalH;
+        const dims = processor.get_image_dimensions(i);
 
         if (mode === 'percentage') {
             const scale = document.getElementById('globalScaleRange').value / 100;
-            const dims = processor.get_image_dimensions(i);
             finalW = Math.round(dims[0] * scale);
             finalH = Math.round(dims[1] * scale);
         } else {
-            finalW = parseInt(document.getElementById('globalW').value);
-            finalH = parseInt(document.getElementById('globalH').value);
+            finalW = parseInt(document.getElementById('globalW').value) || dims[0];
+            finalH = parseInt(document.getElementById('globalH').value) || dims[1];
         }
 
-        if (finalW > 0 && finalH > 0) {
-            await processor.resize_image(i, finalW, finalH);
-        }
+        await processor.resize_image(i, finalW, finalH, format);
     }
-
+    
     updateStatus("Batch resize complete!");
     if (showImages) displayImages();
 };
 
 // Download all images into a Zip folder
 async function downloadAll() {
-    const count = processor.get_image_count();
-    
-    if (count === 0) {
-        alert('No images to download');
-        return;
-    }
-    
-    updateStatus('Preparing download...');
-    
-    // Use dynamic import for JSZip
+    updateStatus('Zipping images...');
     const JSZip = (await import('https://cdn.skypack.dev/jszip')).default;
     const zip = new JSZip();
     
-    for (let i = 0; i < count; i++) {
-        const name = processor.get_image_name(i);
-        const imageData = processor.get_image_data(i);
-        
-        // Remove extension and add .png
-        const baseName = name.replace(/\.[^/.]+$/, "");
-        const fileName = `${baseName}.png`;
-        
-        zip.file(fileName, imageData);
+    for (let i = 0; i < processor.get_image_count(); i++) {
+        const name = processor.get_image_name(i).replace(/\.[^/.]+$/, "");
+        const format = processor.get_image_format(i);
+        zip.file(`${name}.${format}`, processor.get_image_data(i));
     }
     
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    
     // Create a temporary hidden download link and click it
+    const blob = await zip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = 'processed_images.zip';
-    document.body.appendChild(a);
     a.click();
     // Remove temp link
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
     updateStatus('Download completed!');
 }
 
@@ -321,8 +280,11 @@ function clearAll() {
 }
 
 // Keep a status message to let the user know what is happening
-function updateStatus(message) {
-    document.getElementById('status').textContent = message;
-}
+function updateStatus(msg) { document.getElementById('status').textContent = msg; }
+window.toggleBatchInputs = function() {
+    const mode = document.getElementById('batchMode').value;
+    document.getElementById('percGroup').classList.toggle('d-none', mode !== 'percentage');
+    document.getElementById('pixelGroup').classList.toggle('d-none', mode !== 'pixels');
+};
 
 run();
