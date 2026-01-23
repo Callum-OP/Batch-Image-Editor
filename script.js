@@ -3,6 +3,16 @@ import init, { ImageProcessor } from './pkg/batch_image_editor.js';
 let processor = null;
 let showImages = false;
 
+const originalFormats = new Map();
+
+// Resolve selected format or fall back to original image format
+function resolveFormat(selectedFormat, index) {
+    if (!selectedFormat || selectedFormat === 'null' || selectedFormat === 'none') {
+        return originalFormats.get(index) || processor.get_image_format(index);
+    }
+    return selectedFormat;
+}
+
 // Is always running
 async function run() {
     await init();
@@ -26,11 +36,15 @@ async function run() {
 
         // If the lock ratio toggle is checked
         if (lockEnabled) {
-            const dims = processor.get_image_dimensions(parseInt(index));
-            const ratio = dims[0] / dims[1]; // Width / Height
-
             const widthInput = document.getElementById(`width-${index}`);
             const heightInput = document.getElementById(`height-${index}`);
+
+            const currentW = parseInt(widthInput.value);
+            const currentH = parseInt(heightInput.value);
+
+            if (!currentW || !currentH) return;
+
+            const ratio = currentW / currentH; // Width / Height
 
             // Ensure both width and height remain at same ratio
             if (e.target.classList.contains('w-input')) {
@@ -51,7 +65,7 @@ async function handleFiles(event) {
     const files = Array.from(event.target.files);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
-    if (imageFiles.length === 0) {
+    if (imageFiles.length == 0) {
         updateStatus('No image files found.');
         return;
     }
@@ -63,6 +77,8 @@ async function handleFiles(event) {
         try {
             const arrayBuffer = await file.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
+            const ext = file.name.split('.').pop().toLowerCase();
+            originalFormats.set(processor.get_image_count(), ext);
             await processor.add_image(file.name, uint8Array);
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
@@ -106,11 +122,13 @@ function displayImages() {
         // Get image details
         const name = processor.get_image_name(i);
         const dimensions = processor.get_image_dimensions(i);
+        let format = resolveFormat(processor.get_image_format(i), i);
         const width = dimensions[0];
         const height = dimensions[1];
         
         const imageData = processor.get_image_data(i);
-        const blob = new Blob([imageData], { type: 'image/png' });
+        const mime = (format == 'jpg' || format == 'jpeg') ? 'image/jpeg' : 'image/png';
+        const blob = new Blob([imageData], { type: mime });
         const url = URL.createObjectURL(blob);
         
         // Add html
@@ -162,8 +180,10 @@ function displayImages() {
             </div>
         `;
 
-        // Add to index file
         container.appendChild(imageDiv);
+
+        const img = imageDiv.querySelector('img');
+        img.onload = () => URL.revokeObjectURL(url);
     }
 }
 
@@ -171,7 +191,10 @@ function displayImages() {
 window.resizeImage = async function(index) {
     const w = parseInt(document.getElementById(`width-${index}`).value);
     const h = parseInt(document.getElementById(`height-${index}`).value);
-    const format = document.getElementById('globalFormat').value;
+    const format = resolveFormat(
+        document.getElementById('globalFormat').value,
+        index
+    );
 
     // Attempt resize
     try {
@@ -189,20 +212,21 @@ window.resizeImage = async function(index) {
 window.downloadSingle = function(index) {
     const name = processor.get_image_name(index);
     const data = processor.get_image_data(index);
-    const format = processor.get_image_format(index);
+    const format = resolveFormat(
+        document.getElementById('globalFormat').value,
+        index
+    );
     
-    // Convert the PNG bytes into a Blob
-    const blob = new Blob([data], { type: format === 'jpg' ? 'image/jpeg' : 'image/png' });
+    const mime = (format == 'jpg' || format == 'jpeg') ? 'image/jpeg' : 'image/png';
+    const blob = new Blob([data], { type: mime });
     const url = URL.createObjectURL(blob);
-    // Clean up the filename (replace extension with expected format)
     const fileName = name.replace(/\.[^/.]+$/, "") + `_edited.${format}`;
     
-    // Create a temporary hidden download link and click it
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
+    document.body.appendChild(a);
     a.click();
-    // Remove temp link
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
@@ -229,7 +253,7 @@ window.resizeAll = async function() {
         let finalW, finalH;
         const dims = processor.get_image_dimensions(i);
 
-        if (mode === 'percentage') {
+        if (mode == 'percentage') {
             const scale = document.getElementById('globalScaleRange').value / 100;
             finalW = Math.round(dims[0] * scale);
             finalH = Math.round(dims[1] * scale);
@@ -238,7 +262,9 @@ window.resizeAll = async function() {
             finalH = parseInt(document.getElementById('globalH').value) || dims[1];
         }
 
-        await processor.resize_image(i, finalW, finalH, format);
+        const activeFormat = resolveFormat(format, i);
+
+        await processor.resize_image(i, finalW, finalH, activeFormat);
     }
     
     updateStatus("Batch resize complete!");
@@ -253,17 +279,20 @@ async function downloadAll() {
     
     for (let i = 0; i < processor.get_image_count(); i++) {
         const name = processor.get_image_name(i).replace(/\.[^/.]+$/, "");
-        const format = processor.get_image_format(i);
+        const format = resolveFormat(
+            document.getElementById('globalFormat').value,
+            i
+        );
         zip.file(`${name}.${format}`, processor.get_image_data(i));
     }
     
-    // Create a temporary hidden download link and click it
     const blob = await zip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = 'processed_images.zip';
+    document.body.appendChild(a);
     a.click();
-    // Remove temp link
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     updateStatus('Download completed!');
@@ -281,10 +310,5 @@ function clearAll() {
 
 // Keep a status message to let the user know what is happening
 function updateStatus(msg) { document.getElementById('status').textContent = msg; }
-window.toggleBatchInputs = function() {
-    const mode = document.getElementById('batchMode').value;
-    document.getElementById('percGroup').classList.toggle('d-none', mode !== 'percentage');
-    document.getElementById('pixelGroup').classList.toggle('d-none', mode !== 'pixels');
-};
 
 run();
